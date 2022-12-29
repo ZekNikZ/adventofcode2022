@@ -1,0 +1,116 @@
+import sys
+import queue
+
+grid = [list(l.strip()) for l in sys.stdin]
+GRID_WIDTH = len(grid[0])
+GRID_HEIGHT = len(grid)
+
+blizzard_states = []
+
+
+def get_blizzard_state(t):
+    while t >= len(blizzard_states):
+        blizzards = set()
+        for r, c, dir in blizzard_states[-1]:
+            if dir == '>':
+                dr = 0
+                dc = 1
+            elif dir == '<':
+                dr = 0
+                dc = -1
+            elif dir == 'v':
+                dr = 1
+                dc = 0
+            else:
+                dr = -1
+                dc = 0
+            new_r = r + dr
+            if new_r <= 0:
+                new_r = GRID_HEIGHT - 2
+            elif new_r >= GRID_HEIGHT - 1:
+                new_r = 1
+            new_c = c + dc
+            if new_c <= 0:
+                new_c = GRID_WIDTH - 2
+            elif new_c >= GRID_WIDTH - 1:
+                new_c = 1
+            blizzards.add((new_r, new_c, dir))
+        blizzard_states.append(blizzards)
+
+    # print(f'Generated blizzard states up to t={len(blizzard_states) - 1}')
+    return blizzard_states[t]
+
+
+def search_blizzards(blizzards, r, c):
+    for b in blizzards:
+        if b[0] == r and b[1] == c:
+            return True
+
+    return False
+
+
+# Construct initial blizzard state
+blizzards = set()
+for r in range(len(grid)):
+    for c in range(len(grid[0])):
+        if grid[r][c] != '.' and grid[r][c] != '#':
+            blizzards.add((r, c, grid[r][c]))
+blizzard_states.append(blizzards)
+
+# Generate a lot of blizzard states to make search a little faster
+get_blizzard_state(1000)
+
+# Make queue
+# Entries are (taxicab distance from end, r, c, t)
+q = queue.PriorityQueue()
+seen_so_far = set()
+max_dist = GRID_WIDTH - 3 + GRID_HEIGHT - 1
+initial_state = (max_dist, 0, 1, 0)
+q.put(initial_state)
+seen_so_far.add(initial_state)
+
+
+def add_to_queue(s):
+    if s not in seen_so_far:
+        q.put(s)
+        seen_so_far.add(s)
+
+
+# Perform search
+best_so_far = 100000000
+while not q.empty():
+    dist, r, c, t, = q.get()
+    print(dist, r, c, t)
+
+    if r == GRID_HEIGHT - 1 and c == GRID_WIDTH - 2:
+        if t < best_so_far:
+            print(f'Found {t}')
+            best_so_far = t
+        pass
+
+    if t >= best_so_far:
+        continue
+
+    next_blizzards = get_blizzard_state(t + 1)
+
+    # Check if we can stand still
+    if not search_blizzards(next_blizzards, r, c):
+        add_to_queue((dist + 1, r, c, t + 1))
+
+    # Check if we can move down
+    if r + 1 < GRID_HEIGHT and not search_blizzards(next_blizzards, r + 1, c):
+        add_to_queue((dist - 1 + 1, r + 1, c, t + 1))
+
+    # Check if we can move right
+    if c + 1 < GRID_WIDTH and not search_blizzards(next_blizzards, r, c + 1):
+        add_to_queue((dist - 1 + 1, r, c + 1, t + 1))
+
+    # Check if we can move up
+    if r - 1 > 0 and not search_blizzards(next_blizzards, r - 1, c):
+        add_to_queue((dist + 1 + 1, r - 1, c, t + 1))
+
+    # Check if we can move left
+    if c - 1 > 0 and not search_blizzards(next_blizzards, r, c - 1):
+        add_to_queue((dist + 1 + 1, r, c - 1, t + 1))
+
+print(best_so_far)
